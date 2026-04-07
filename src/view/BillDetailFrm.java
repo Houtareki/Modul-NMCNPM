@@ -12,42 +12,35 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
-import java.sql.Date;
 
-public class CreateBillFrm extends JFrame {
+public class BillDetailFrm extends JFrame {
     private JPanel mainPanel;
     private JTextField ngàyThanhToánTextField;
-    private JTextField họTênTextField;
     private JTextField sốĐiệnThoạiTextField;
+    private JTable tblUsedServiceList;
     private JTextField phươngThứcThanhToánTextField;
     private JTextField txtClientPhone;
     private JTextField txtClientName;
     private JTextField txtPaymentDate;
-    private JTable tblUsedServiceList;
-    private JComboBox cbPaymentMethod;
-    private JButton btnConfirm;
-    private JButton btnCancel;
+    private JTextField họTênTextField;
+    private JButton btnCancelBill;
+    private JButton btnClose;
     private JTextField txtTotalAmount;
     private JTextField tổngTiềnTextField;
     private JTextArea txtNote;
+    private JTextField txtPaymentMethod;
 
     private DefaultTableModel tableModel;
+    private int curBillId;
 
-    private ArrayList<Integer> selectedAppointmentIds;
-    private float totalBillAmount = 0;
+    public BillDetailFrm(int billId) {
+        this.curBillId = billId;
 
-    public CreateBillFrm(ArrayList<Integer> apptIds, String clientName, String clientPhone) {
-        this.selectedAppointmentIds = apptIds;
-
-        setTitle("Lập Hóa Đơn");
+        setTitle("Chi tiết Hóa Đơn - Hủy Hóa Đơn");
         setContentPane(mainPanel);
         setSize(800, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-
-        txtClientName.setText(clientName);
-        txtClientPhone.setText(clientPhone);
-        txtPaymentDate.setText(new Date(System.currentTimeMillis()).toString()); // Ngày hôm nay
 
         txtClientName.setEditable(false);
         txtClientPhone.setEditable(false);
@@ -61,38 +54,38 @@ public class CreateBillFrm extends JFrame {
         tổngTiềnTextField.setEditable(false);
 
         setupTable();
-        loadUsedServices();
+        loadData();
 
-        btnConfirm.addActionListener(new ActionListener() {
+        btnCancelBill.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (cbPaymentMethod.getSelectedItem() == null) {
-                    JOptionPane.showMessageDialog(CreateBillFrm.this, "Vui lòng chọn phương thức thanh toán!");
+                String note = txtNote.getText().trim();
+                if (note.isEmpty()) {
+                    JOptionPane.showMessageDialog(BillDetailFrm.this, "Vui lòng nhập lý do hủy hóa đơn vào ô Ghi chú!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
                     return;
                 }
 
-                Bill bill = new Bill();
-                bill.setPaymentDate(Date.valueOf(txtPaymentDate.getText()));
-                bill.setPaymentAmount(totalBillAmount);
-                bill.setPaymentMethod(cbPaymentMethod.getSelectedItem().toString());
-                bill.setNote(txtNote.getText());
+                int confirm = JOptionPane.showConfirmDialog(BillDetailFrm.this,
+                        "Bạn có chắc chắn muốn hủy hóa đơn này không?", "Xác nhận", JOptionPane.YES_NO_OPTION);
 
-                BillDAO billDAO = new BillDAO();
-                int newBillId = billDAO.createBill(bill);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    BillDAO billDAO = new BillDAO();
+                    boolean isCancel = billDAO.cancelBill(curBillId, note);
 
-                if (newBillId > 0) {
-                    AppointmentDAO dao = new AppointmentDAO();
-                    dao.updateStatus(selectedAppointmentIds, newBillId, "Completed");
+                    if (isCancel) {
+                        AppointmentDAO appointmentDAO = new AppointmentDAO();
+                        ArrayList<Integer> appointmentIds = appointmentDAO.getAppointmentIdsById(curBillId);
+                        appointmentDAO.updateStatus(appointmentIds, curBillId, "Pending");
 
-                    JOptionPane.showMessageDialog(CreateBillFrm.this, "Lập hóa đơn thành công!");
-                    dispose();
-                } else {
-                    JOptionPane.showMessageDialog(CreateBillFrm.this, "Lỗi khi lưu hóa đơn!");
+                        JOptionPane.showMessageDialog(BillDetailFrm.this, "Hủy hóa đơn thành công!");
+                        dispose();
+                    } else {
+                        JOptionPane.showMessageDialog(BillDetailFrm.this, "Lỗi khi hủy hóa đơn!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                    }
                 }
             }
         });
-
-        btnCancel.addActionListener(e -> dispose());
+        btnClose.addActionListener(e -> dispose());
     }
 
     private void setupTable() {
@@ -101,21 +94,25 @@ public class CreateBillFrm extends JFrame {
         tblUsedServiceList.setModel(tableModel);
     }
 
-    private void loadUsedServices() {
-        UsedServiceDAO dao = new UsedServiceDAO();
-        ArrayList<UsedService> usedServices = dao.getUsedServicesByAppointmentIds(selectedAppointmentIds);
+    private void loadData() {
+        BillDAO billDAO = new BillDAO();
+        Bill bill = billDAO.getBillDetail(curBillId);
 
-        if (usedServices.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "Ca khám này chưa sử dụng dịch vụ nào, không thể lập hóa đơn!",
-                    "Cảnh báo", JOptionPane.WARNING_MESSAGE);
-            btnConfirm.setEnabled(false);
-            return;
+        if (bill != null) {
+            txtClientName.setText(bill.getClientName());
+            txtClientPhone.setText(bill.getClientPhone());
+            txtPaymentDate.setText(bill.getPaymentDate().toString());
+            txtPaymentMethod.setText(bill.getPaymentMethod());
+            txtTotalAmount.setText(String.format("%,.0f VNĐ", bill.getPaymentAmount()));
         }
 
-        int index = 1;
-        totalBillAmount = 0;
+        AppointmentDAO appointmentDAO = new AppointmentDAO();
+        ArrayList<Integer> appointmentIds = appointmentDAO.getAppointmentIdsById(curBillId);
 
+        UsedServiceDAO usedServiceDAO = new UsedServiceDAO();
+        ArrayList<UsedService> usedServices = usedServiceDAO.getUsedServicesByAppointmentIds(appointmentIds);
+
+        int index = 1;
         for (UsedService usedService : usedServices) {
             tableModel.addRow(new Object[]{
                     index++,
@@ -124,9 +121,7 @@ public class CreateBillFrm extends JFrame {
                     String.format("%,.0f", usedService.getPrice()),
                     String.format("%,.0f", usedService.getTotalAmount())
             });
-            totalBillAmount += usedService.getTotalAmount();
         }
-        txtTotalAmount.setText(String.format("%,.0f VND", totalBillAmount));
     }
 
     {
@@ -144,8 +139,11 @@ public class CreateBillFrm extends JFrame {
      * @noinspection ALL
      */
     private void $$$setupUI$$$() {
+        final JPanel panel1 = new JPanel();
+        panel1.setLayout(new com.intellij.uiDesigner.core.GridLayoutManager(2, 1, new Insets(0, 0, 0, 0), -1, -1));
         mainPanel = new JPanel();
         mainPanel.setLayout(new com.intellij.uiDesigner.core.GridLayoutManager(8, 2, new Insets(0, 0, 0, 0), -1, -1));
+        panel1.add(mainPanel, new com.intellij.uiDesigner.core.GridConstraints(1, 0, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_NONE, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
         ngàyThanhToánTextField = new JTextField();
         ngàyThanhToánTextField.setText("Ngày thanh toán");
         mainPanel.add(ngàyThanhToánTextField, new com.intellij.uiDesigner.core.GridConstraints(0, 0, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
@@ -168,19 +166,12 @@ public class CreateBillFrm extends JFrame {
         họTênTextField = new JTextField();
         họTênTextField.setText("Họ tên");
         mainPanel.add(họTênTextField, new com.intellij.uiDesigner.core.GridConstraints(1, 0, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
-        cbPaymentMethod = new JComboBox();
-        final DefaultComboBoxModel defaultComboBoxModel1 = new DefaultComboBoxModel();
-        defaultComboBoxModel1.addElement("Tiền mặt");
-        defaultComboBoxModel1.addElement("Chuyển khoản");
-        defaultComboBoxModel1.addElement("Quẹt thẻ");
-        cbPaymentMethod.setModel(defaultComboBoxModel1);
-        mainPanel.add(cbPaymentMethod, new com.intellij.uiDesigner.core.GridConstraints(3, 1, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        btnConfirm = new JButton();
-        btnConfirm.setText("Confirm");
-        mainPanel.add(btnConfirm, new com.intellij.uiDesigner.core.GridConstraints(7, 0, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        btnCancel = new JButton();
-        btnCancel.setText("Cancel");
-        mainPanel.add(btnCancel, new com.intellij.uiDesigner.core.GridConstraints(7, 1, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        btnCancelBill = new JButton();
+        btnCancelBill.setText("Confirm");
+        mainPanel.add(btnCancelBill, new com.intellij.uiDesigner.core.GridConstraints(7, 0, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        btnClose = new JButton();
+        btnClose.setText("Cancel");
+        mainPanel.add(btnClose, new com.intellij.uiDesigner.core.GridConstraints(7, 1, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         txtTotalAmount = new JTextField();
         mainPanel.add(txtTotalAmount, new com.intellij.uiDesigner.core.GridConstraints(5, 1, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
         tổngTiềnTextField = new JTextField();
@@ -189,12 +180,9 @@ public class CreateBillFrm extends JFrame {
         txtNote = new JTextArea();
         txtNote.setText("Note:");
         mainPanel.add(txtNote, new com.intellij.uiDesigner.core.GridConstraints(6, 0, 1, 2, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_BOTH, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(150, 50), null, 0, false));
-    }
-
-    /**
-     * @noinspection ALL
-     */
-    public JComponent $$$getRootComponent$$$() {
-        return mainPanel;
+        txtPaymentMethod = new JTextField();
+        mainPanel.add(txtPaymentMethod, new com.intellij.uiDesigner.core.GridConstraints(3, 1, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
+        final com.intellij.uiDesigner.core.Spacer spacer1 = new com.intellij.uiDesigner.core.Spacer();
+        panel1.add(spacer1, new com.intellij.uiDesigner.core.GridConstraints(0, 0, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_VERTICAL, 1, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
     }
 }

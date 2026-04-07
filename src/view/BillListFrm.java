@@ -4,10 +4,15 @@ import dao.BillDAO;
 import model.Bill;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 
 public class BillListFrm extends JFrame {
@@ -26,14 +31,24 @@ public class BillListFrm extends JFrame {
     public BillListFrm() {
         setTitle("Danh sách hóa đơn");
         setContentPane(mainPanel);
-        setSize(900, 600);
+        setSize(950, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         // bảng
-        String[] columns = {"ID", "Tên khách hàng", "SĐT", "Ngày lập", "Phương thức", "Thành tiền"};
-        tableModel = new DefaultTableModel(columns, 0);
+        String[] columns = {"ID", "Tên khách hàng", "SĐT", "Ngày lập", "Phương thức", "Thành tiền", "Chi tiết"};
+        tableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return column == 6;
+            }
+        };
         tblBillList.setModel(tableModel);
+
+        tblBillList.getColumnModel().getColumn(6).setCellRenderer((new ButtonRenderer()));
+        tblBillList.getColumnModel().getColumn(6).setCellEditor(new ButtonEditor(new JCheckBox()));
+
+        tblBillList.getColumnModel().getColumn(6).setPreferredWidth(80);
 
         // nút tìm kiếm
         btnSearch.addActionListener(new ActionListener() {
@@ -42,6 +57,9 @@ public class BillListFrm extends JFrame {
                 searchBills();
             }
         });
+
+        // xem bill detail
+
 
         searchBills();
     }
@@ -68,7 +86,8 @@ public class BillListFrm extends JFrame {
                         bill.getClientPhone(),
                         bill.getPaymentDate(),
                         bill.getPaymentMethod(),
-                        String.format("%,.0f", bill.getPaymentAmount())
+                        String.format("%,.0f", bill.getPaymentAmount()),
+                        "Xem" // nút bấm
                 });
             }
 
@@ -77,6 +96,72 @@ public class BillListFrm extends JFrame {
             }
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Lỗi dữ liệu đầu vào", "Lỗi", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    class ButtonRenderer extends JButton implements TableCellRenderer {
+        public ButtonRenderer() {
+            setOpaque(true);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            setText(value == null ? "Xem" : value.toString());
+            return this;
+        }
+    }
+
+    class ButtonEditor extends DefaultCellEditor {
+        protected JButton button;
+        private String label;
+        private boolean isPushed;
+        private int currentRow;
+
+        public ButtonEditor(JCheckBox checkBox) {
+            super(checkBox);
+            button = new JButton();
+            button.setOpaque(true);
+            button.addActionListener(new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    fireEditingStopped();
+                }
+            });
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value,
+                                                     boolean isSelected, int row, int column) {
+            currentRow = row;
+            label = (value == null) ? "Xem" : value.toString();
+            button.setText(label);
+            isPushed = true;
+            return button;
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            if (isPushed) {
+                // khi bấm xem
+                int billId = (int) tblBillList.getValueAt(currentRow, 0);
+
+                BillDetailFrm detailFrm = new BillDetailFrm(billId);
+                detailFrm.setVisible(true);
+
+                detailFrm.addWindowListener(new WindowAdapter() {
+                    @Override
+                    public void windowClosed(WindowEvent e) {
+                        searchBills();
+                    }
+                });
+            }
+            isPushed = false;
+            return label;
+        }
+
+        @Override
+        public boolean stopCellEditing() {
+            isPushed = false;
+            return super.stopCellEditing();
         }
     }
 

@@ -88,4 +88,47 @@ public class BillDAO {
         }
         return generatedId;
     }
+
+    public Bill getBillDetail(int id) {
+        Bill bill = null;
+
+        String sql = "SELECT b.*, c.fullName, c.phone FROM tblBill b " +
+                "JOIN tblAppointment a ON b.ID = a.tblBillID " +
+                "JOIN tblClient c ON a.tblClientID = c.ID " +
+                "WHERE b.ID = ? LIMIT 1";
+
+        try {
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, id);
+
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                bill = new Bill();
+                bill.setId(rs.getInt("ID"));
+                bill.setClientName(rs.getString("fullName"));
+                bill.setClientPhone(rs.getString("phone"));
+                bill.setPaymentDate(rs.getDate("paymentDate"));
+                bill.setPaymentAmount(rs.getFloat("paymentAmount"));
+                bill.setPaymentMethod(rs.getString("paymentMethod"));
+                bill.setNote(rs.getString("note"));
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return bill;
+    }
+
+    public boolean cancelBill(int id, String note) {
+        String sql = "UPDATE tblBill SET isValid = 0, note = ? WHERE ID = ?";
+        try {
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setString(1, note);
+            ps.setInt(2, id);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 }

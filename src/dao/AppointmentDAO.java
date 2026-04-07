@@ -53,7 +53,7 @@ public class AppointmentDAO {
         return appointments;
     }
 
-    public void updateStatus(ArrayList<Integer> appointmentIds, int billId) {
+    public void updateStatus(ArrayList<Integer> appointmentIds, int billId, String status) {
         if (appointmentIds.isEmpty()) {
             return;
         }
@@ -63,16 +63,44 @@ public class AppointmentDAO {
             if (i < appointmentIds.size() - 1) placeholders.append(",");
         }
 
-        String sql = "UPDATE tblAppointment SET status = 'Completed', tblBillID = ? WHERE ID IN (" + placeholders + ")";
+        String sql = "UPDATE tblAppointment SET status = ?, tblBillID = ? WHERE ID IN (" + placeholders + ")";
+
         try {
             PreparedStatement ps = con.prepareStatement(sql);
-            ps.setInt(1, billId);
+
+            ps.setString(1, status);
+
+            if (status.equalsIgnoreCase("Pending")) {
+                ps.setNull(2, java.sql.Types.INTEGER);
+            } else {
+                ps.setInt(2, billId);
+            }
+
             for (int i = 0; i < appointmentIds.size(); i++) {
-                ps.setInt(i + 2, appointmentIds.get(i));
+                ps.setInt(i + 3, appointmentIds.get(i));
             }
             ps.executeUpdate();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+    public ArrayList<Integer> getAppointmentIdsById(int billId) {
+        ArrayList<Integer> appointmentIds = new ArrayList<>();
+        String sql = "SELECT ID FROM tblAppointment WHERE tblBillID = ?";
+
+        try {
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, billId);
+
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                appointmentIds.add(rs.getInt("ID"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return appointmentIds;
+    }
+
 }
