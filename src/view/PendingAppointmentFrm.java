@@ -1,10 +1,21 @@
 // Code khung cơ bản cho PendingAppointmentFrm.java
 package view;
+import dao.AppointmentDAO;
+import model.Appointment;
+
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.util.ArrayList;
 
 public class PendingAppointmentFrm extends JFrame {
     private JPanel mainPanel;
+    private JTextField txtKeyword;
+    private JButton btnSearch;
+    private JTable tblAppointmentList;
+    private JButton btnPayment;
+
+    private DefaultTableModel tableModel;
 
     public PendingAppointmentFrm() {
         setTitle("Tìm kiếm ca khám chờ thanh toán");
@@ -12,6 +23,77 @@ public class PendingAppointmentFrm extends JFrame {
         setSize(800, 500);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // Tắt form này không tắt màn hình chính
+
+    }
+
+    //tạo bảng với checkbox ở cuối
+    public void setupTable() {
+        String[] columns = {"ID", "Tên khách hàng", "SĐT", "Ngày khám", "Giờ khám", "Trạng thái", "Chọn"};
+
+        tableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public Class<?> getColumnClass(int columnIndex) {
+                if (columnIndex == 6) {
+                    return Boolean.class; //checkbox
+                }
+                return super.getColumnClass(columnIndex);
+            }
+
+            @Override
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return columnIndex == 6;
+            }
+        };
+        tblAppointmentList.setModel(tableModel);
+    }
+
+    // tìm kiếm
+    private void searchAppointment() {
+        String keyword = txtKeyword.getText().trim();
+
+        if (keyword.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng nhập tên, số điện thoại hoặc CCCD để tìm kiếm", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        AppointmentDAO dao = new AppointmentDAO();
+        ArrayList<Appointment> appointments = dao.searchPendingAppointment(keyword);
+
+        tableModel.setRowCount(0);
+
+        for (Appointment appointment : appointments) {
+            tableModel.addRow(new Object[]{
+                    appointment.getId(),
+                    appointment.getClientName(),
+                    appointment.getClientPhone(),
+                    appointment.getBookingDate(),
+                    appointment.getBookingTime(),
+                    appointment.getStatus(),
+                    false // default checkbox
+            });
+        }
+
+        if (appointments.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Không tìm thấy ca khám cần thanh toán", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    // thanh toán
+    private void processPayment() {
+        ArrayList<Integer> selectedAppointmentIds = new ArrayList<>();
+
+        for (int i = 0; i < tableModel.getRowCount(); i++) {
+            Boolean isSelected = (Boolean) tableModel.getValueAt(i, 6);
+            if (isSelected != null && isSelected) {
+                selectedAppointmentIds.add((Integer) tableModel.getValueAt(i, 0));
+            }
+        }
+
+        if (selectedAppointmentIds.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng tích chọn ít nhất 1 ca khám để thanh toán!", "Lỗi", JOptionPane.WARNING_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, "Bạn đã chọn các ca khám ID: " + selectedAppointmentIds + "\nSẽ mở form Lập hóa đơn ở bước tiếp theo!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
+        }
     }
 
     {
@@ -29,7 +111,26 @@ public class PendingAppointmentFrm extends JFrame {
      * @noinspection ALL
      */
     private void $$$setupUI$$$() {
-        final JPanel panel1 = new JPanel();
-        panel1.setLayout(new com.intellij.uiDesigner.core.GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), -1, -1));
+        mainPanel = new JPanel();
+        mainPanel.setLayout(new com.intellij.uiDesigner.core.GridLayoutManager(2, 2, new Insets(0, 0, 0, 0), -1, -1));
+        txtKeyword = new JTextField();
+        mainPanel.add(txtKeyword, new com.intellij.uiDesigner.core.GridConstraints(0, 0, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
+        btnSearch = new JButton();
+        btnSearch.setText("Search");
+        mainPanel.add(btnSearch, new com.intellij.uiDesigner.core.GridConstraints(0, 1, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        final JScrollPane scrollPane1 = new JScrollPane();
+        mainPanel.add(scrollPane1, new com.intellij.uiDesigner.core.GridConstraints(1, 0, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_BOTH, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+        tblAppointmentList = new JTable();
+        scrollPane1.setViewportView(tblAppointmentList);
+        btnPayment = new JButton();
+        btnPayment.setText("Thanh toán");
+        mainPanel.add(btnPayment, new com.intellij.uiDesigner.core.GridConstraints(1, 1, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_HORIZONTAL, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+    }
+
+    /**
+     * @noinspection ALL
+     */
+    public JComponent $$$getRootComponent$$$() {
+        return mainPanel;
     }
 }
