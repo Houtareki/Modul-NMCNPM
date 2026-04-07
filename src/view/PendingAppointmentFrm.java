@@ -6,6 +6,8 @@ import model.Appointment;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.ArrayList;
 
 public class PendingAppointmentFrm extends JFrame {
@@ -24,6 +26,21 @@ public class PendingAppointmentFrm extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // Tắt form này không tắt màn hình chính
 
+        setupTable();
+
+        btnSearch.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                searchAppointment();
+            }
+        });
+
+        btnPayment.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                processPayment();
+            }
+        });
     }
 
     //tạo bảng với checkbox ở cuối
@@ -81,18 +98,29 @@ public class PendingAppointmentFrm extends JFrame {
     // thanh toán
     private void processPayment() {
         ArrayList<Integer> selectedAppointmentIds = new ArrayList<>();
+        String clientName = "";
+        String clientPhone = "";
 
         for (int i = 0; i < tableModel.getRowCount(); i++) {
             Boolean isSelected = (Boolean) tableModel.getValueAt(i, 6);
             if (isSelected != null && isSelected) {
                 selectedAppointmentIds.add((Integer) tableModel.getValueAt(i, 0));
+
+                if (clientName.isEmpty()) {
+                    clientName = (String)  tableModel.getValueAt(i, 1);
+                    clientPhone = (String)  tableModel.getValueAt(i, 2);
+                }
             }
         }
 
         if (selectedAppointmentIds.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Vui lòng tích chọn ít nhất 1 ca khám để thanh toán!", "Lỗi", JOptionPane.WARNING_MESSAGE);
         } else {
-            JOptionPane.showMessageDialog(this, "Bạn đã chọn các ca khám ID: " + selectedAppointmentIds + "\nSẽ mở form Lập hóa đơn ở bước tiếp theo!", "Thành công", JOptionPane.INFORMATION_MESSAGE);
+            // lập hóa đơn
+            CreateBillFrm createBillFrm = new CreateBillFrm(selectedAppointmentIds, clientName, clientPhone);
+            createBillFrm.setVisible(true);
+
+            this.dispose();
         }
     }
 
@@ -133,4 +161,5 @@ public class PendingAppointmentFrm extends JFrame {
     public JComponent $$$getRootComponent$$$() {
         return mainPanel;
     }
+
 }

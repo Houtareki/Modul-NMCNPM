@@ -2,10 +2,7 @@ package dao;
 
 import model.Appointment;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.sql.*;
 import java.util.ArrayList;
 
 public class AppointmentDAO {
@@ -54,5 +51,28 @@ public class AppointmentDAO {
             e.printStackTrace();
         }
         return appointments;
+    }
+
+    public void updateStatus(ArrayList<Integer> appointmentIds, int billId) {
+        if (appointmentIds.isEmpty()) {
+            return;
+        }
+        StringBuilder placeholders = new StringBuilder();
+        for (int i = 0; i < appointmentIds.size(); i++) {
+            placeholders.append("?");
+            if (i < appointmentIds.size() - 1) placeholders.append(",");
+        }
+
+        String sql = "UPDATE tblAppointment SET status = 'Completed', tblBillID = ? WHERE ID IN (" + placeholders + ")";
+        try {
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, billId);
+            for (int i = 0; i < appointmentIds.size(); i++) {
+                ps.setInt(i + 2, appointmentIds.get(i));
+            }
+            ps.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

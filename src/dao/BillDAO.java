@@ -65,4 +65,27 @@ public class BillDAO {
         }
         return bills;
     }
+
+    public int createBill(Bill bill) {
+        int generatedId = -1;
+        String sql = "INSERT INTO tblBill (paymentDate, paymentAmount, paymentMethod, note, isValid, tblUserID) " +
+                "VALUES (?, ?, ?, ?, 1, 1)"; // Mặc định Lễ tân ID = 1
+
+        try {
+            PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setDate(1, bill.getPaymentDate());
+            ps.setFloat(2, bill.getPaymentAmount());
+            ps.setString(3, bill.getPaymentMethod());
+            ps.setString(4, bill.getNote());
+            ps.executeUpdate();
+
+            ResultSet rs = ps.getGeneratedKeys();
+            if (rs.next()) {
+                generatedId = rs.getInt(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return generatedId;
+    }
 }
