@@ -27,14 +27,13 @@ public class UsedServiceDAO {
 
         String sql = "SELECT us.ID, c.fullName, s.name, us.quantity, s.price " +
                 "FROM tblUsedService us " +
-                "JOIN tblService s ON us.serviceID = s.ID " +
-                "JOIN tblAppointment a ON us.appointmentID = a.ID " +
-                "JOIN tblClient c ON a.clientID = c.ID " +
-                "WHERE us.appointmentID IN (" + placeholders + ")";
-
+                "JOIN tblService s ON us.tblServiceID = s.ID " +
+                "JOIN tblAppointment a ON us.tblAppointmentID = a.ID " +
+                "JOIN tblClient c ON a.tblClientID = c.ID " +
+                "WHERE us.tblAppointmentID IN (" + placeholders + ")";
         try {
             PreparedStatement ps = con.prepareStatement(sql);
-            for (int i = 1; i <= appointmentIds.size(); i++) {
+            for (int i = 0; i < appointmentIds.size(); i++) {
                 ps.setInt(i + 1, appointmentIds.get(i));
             }
 

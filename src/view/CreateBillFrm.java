@@ -54,6 +54,12 @@ public class CreateBillFrm extends JFrame {
         txtPaymentDate.setEditable(false);
         txtTotalAmount.setEditable(false); // không thể sửa
 
+        ngàyThanhToánTextField.setEditable(false);
+        họTênTextField.setEditable(false);
+        sốĐiệnThoạiTextField.setEditable(false);
+        phươngThứcThanhToánTextField.setEditable(false);
+        tổngTiềnTextField.setEditable(false);
+
         setupTable();
         loadUsedServices();
 
@@ -98,6 +104,14 @@ public class CreateBillFrm extends JFrame {
     private void loadUsedServices() {
         UsedServiceDAO dao = new UsedServiceDAO();
         ArrayList<UsedService> usedServices = dao.getUsedServicesByAppointmentIds(selectedAppointmentIds);
+
+        if (usedServices.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Ca khám này chưa sử dụng dịch vụ nào, không thể lập hóa đơn!",
+                    "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            btnConfirm.setEnabled(false);
+            return;
+        }
 
         int index = 1;
         totalBillAmount = 0;
